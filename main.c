@@ -1,5 +1,4 @@
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <arpa/inet.h>
 #include <stdio.h>
 #include <sys/select.h>
@@ -7,9 +6,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define IPADRESS 127.0.0.1
-#define PORT 8080
 #define MAXSIZE 512
+#define NAMESIZE 24
 
 enum methods {
     JOIN = 0,
@@ -17,14 +15,11 @@ enum methods {
     EXIT = 2
 };
 
-typedef struct sendPDU {
+struct sendPDU {
     enum methods method;
-    char name[24];
-    char message[512];
+    char name[NAMESIZE];
+    char message[MAXSIZE];
 };
-
-
-struct sockaddr_in si_me, si_other;
 
 void sendMessage(struct sendPDU *msg, char **argv, int argc) {
     int csocket, i;
@@ -55,7 +50,7 @@ void sendMessage(struct sendPDU *msg, char **argv, int argc) {
 }
 
 //buffer: stdin, name : stdin, argv: classparams
-int createAndSendMessage(char *buffer, char *name, char **argv, int argc) {
+void createAndSendMessage(char *buffer, char *name, char **argv, int argc) {
     short type;
 
     //check message type
@@ -80,21 +75,23 @@ int createAndSendMessage(char *buffer, char *name, char **argv, int argc) {
  * The first pair will be used for your own Peer.
  */
 int main(int argc, char **argv) {
-    int ssocket, retval, i;
+    int ssocket, retval;
     char buffer[MAXSIZE] = {0};
+    char name[NAMESIZE];
     struct sendPDU receiveBuffer;
-    char name[24];
+    struct sockaddr_in si_me;
     char *nameptr = malloc(24 * sizeof(char));
 
     //check parameter count
     if (argc < 3) {
         printf("invalid amount of arguments\n");
-        exit(0);
+        return EXIT_FAILURE;
     }
 
     //create udp socket
     if ((ssocket = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         perror("udp socket binding failed\n");
+        return EXIT_FAILURE;
     }
 
     //get username
@@ -110,7 +107,7 @@ int main(int argc, char **argv) {
     //bind socket
     if (bind(ssocket, (struct sockaddr *) &si_me, sizeof(si_me)) == -1) {
         perror("bind failed\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     //send join
@@ -118,7 +115,7 @@ int main(int argc, char **argv) {
     joinmsg.method = JOIN;
     strncpy(joinmsg.name, name, sizeof(joinmsg.name));
     strncpy(joinmsg.message, "", sizeof(joinmsg.message));
-    createAndSendMessage(&joinmsg, name, argv, argc);
+    createAndSendMessage((char *) &joinmsg, name, argv, argc);
 
     //set filedescriptors
     fd_set s_rd;
@@ -131,7 +128,7 @@ int main(int argc, char **argv) {
         //print out result from select
         if (retval == -1) {
             perror("select failed\n");
-            return 0;
+            return EXIT_FAILURE;
         } else if (retval == 0) {
             perror("timeout occured\n");
         } else {
@@ -173,15 +170,15 @@ int main(int argc, char **argv) {
 
     printf("Leaving conversation.");
 
-    //send join
+    //send exit
     struct sendPDU exitmsg;
     exitmsg.method = EXIT;
     strncpy(exitmsg.name, name, sizeof(joinmsg.name));
     strncpy(exitmsg.message, "", sizeof(joinmsg.message));
-    createAndSendMessage(&exitmsg, name, argv, argc);
+    createAndSendMessage((char *) &exitmsg, name, argv, argc);
 
     close(ssocket);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
