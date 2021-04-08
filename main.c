@@ -10,9 +10,9 @@
 #define NAMESIZE 24
 
 enum methods {
-    JOIN = 0,
-    SEND = 1,
-    EXIT = 2
+    JOIN,
+    SEND,
+    EXIT
 };
 
 struct messagepdu {
