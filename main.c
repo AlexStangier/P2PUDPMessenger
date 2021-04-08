@@ -10,18 +10,18 @@
 #define NAMESIZE 24
 
 enum methods {
-    JOIN = 0,
-    SEND = 1,
-    EXIT = 2
+    JOIN,
+    SEND,
+    EXIT
 };
 
-struct sendPDU {
+struct messagepdu {
     enum methods method;
     char name[NAMESIZE];
     char message[MAXSIZE];
 };
 
-void sendMessage(struct sendPDU *msg, char **argv, int argc) {
+void sendMessage(struct messagepdu *msg, char **argv, int argc) {
     int csocket, i;
     struct sockaddr_in servaddr;
 
@@ -41,7 +41,7 @@ void sendMessage(struct sendPDU *msg, char **argv, int argc) {
         servaddr.sin_port = htons(atoi(argv[++i]));
 
 
-        sendto(csocket, msg, sizeof(struct sendPDU),
+        sendto(csocket, msg, sizeof(struct messagepdu),
                0, (const struct sockaddr *) &servaddr,
                sizeof(servaddr));
     }
@@ -58,8 +58,8 @@ void createAndSendMessage(char *buffer, char *name, char **argv, int argc) {
     else if (strncmp(buffer, "!EXIT", 5) == 0) type = EXIT;
     else type = SEND;
 
-    //create sendPDU
-    struct sendPDU message;
+    //create messagepdu
+    struct messagepdu message;
     message.method = type;
     strncpy(message.name, name, sizeof(message.name));
     strncpy(message.message, buffer, sizeof(message.message));
@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
     int ssocket, retval;
     char buffer[MAXSIZE] = {0};
     char name[NAMESIZE];
-    struct sendPDU receiveBuffer;
+    struct messagepdu receiveBuffer;
     struct sockaddr_in si_me;
-    char *nameptr = malloc(24 * sizeof(char));
+    char *nameptr = malloc(NAMESIZE * sizeof(char));
 
     //check parameter count
     if (argc < 3) {
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
     }
 
     //send join
-    struct sendPDU joinmsg;
+    struct messagepdu joinmsg;
     joinmsg.method = JOIN;
     strncpy(joinmsg.name, name, sizeof(joinmsg.name));
     strncpy(joinmsg.message, "", sizeof(joinmsg.message));
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
             //messages received from udp
             if (FD_ISSET(ssocket, &s_rd)) {
                 //udp package
-                recvfrom(ssocket, &receiveBuffer, sizeof(struct sendPDU), 0, (struct sockaddr *) &si_me, 0);
+                recvfrom(ssocket, &receiveBuffer, sizeof(struct messagepdu), 0, (struct sockaddr *) &si_me, 0);
 
                 //handle message types
                 if (strncmp(buffer, "!EXIT", 5) == 0) {
@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
     printf("Leaving conversation.");
 
     //send exit
-    struct sendPDU exitmsg;
+    struct messagepdu exitmsg;
     exitmsg.method = EXIT;
     strncpy(exitmsg.name, name, sizeof(joinmsg.name));
     strncpy(exitmsg.message, "", sizeof(joinmsg.message));
