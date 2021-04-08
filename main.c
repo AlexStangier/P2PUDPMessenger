@@ -10,9 +10,9 @@
 #define NAMESIZE 24
 
 enum methods {
-    JOIN,
-    SEND,
-    EXIT
+    JOIN = 0,
+    SEND = 1,
+    EXIT = 2
 };
 
 struct messagepdu {
@@ -26,7 +26,7 @@ void sendMessage(struct messagepdu *msg, char **argv, int argc) {
     struct sockaddr_in servaddr;
 
     if ((csocket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("socket creation failed");
+        perror("socket creation failed\n");
         exit(EXIT_FAILURE);
     }
 
@@ -50,19 +50,15 @@ void sendMessage(struct messagepdu *msg, char **argv, int argc) {
 }
 
 //buffer: stdin, name : stdin, argv: classparams
-void createAndSendMessage(char *buffer, char *name, char **argv, int argc) {
-    short type;
-
-    //check message type
-    if (strncmp(buffer, "!JOIN", 5) == 0) type = JOIN;
-    else if (strncmp(buffer, "!EXIT", 5) == 0) type = EXIT;
-    else type = SEND;
+void createAndSendMessage(char *buffer, short type, char *name, char **argv, int argc) {
 
     //create messagepdu
     struct messagepdu message;
     message.method = type;
     strncpy(message.name, name, sizeof(message.name));
     strncpy(message.message, buffer, sizeof(message.message));
+
+
 
     //send Message
     sendMessage(&message, argv, argc);
@@ -115,7 +111,7 @@ int main(int argc, char **argv) {
     joinmsg.method = JOIN;
     strncpy(joinmsg.name, name, sizeof(joinmsg.name));
     strncpy(joinmsg.message, "", sizeof(joinmsg.message));
-    createAndSendMessage((char *) &joinmsg, name, argv, argc);
+    createAndSendMessage((char *) &joinmsg, JOIN, nameptr, argv, argc);
 
     //set filedescriptors
     fd_set s_rd;
@@ -140,14 +136,14 @@ int main(int argc, char **argv) {
                 recvfrom(ssocket, &receiveBuffer, sizeof(struct messagepdu), 0, (struct sockaddr *) &si_me, 0);
 
                 //handle message types
-                if (strncmp(buffer, "!EXIT", 5) == 0) {
-                    printf("%s ... has left the conversation.\n", receiveBuffer.name);
-                } else if (strncmp(buffer, "!JOIN", 5) == 0) {
+                if (receiveBuffer.method == 0) {
                     printf("%s ... has joined the conversation.\n", receiveBuffer.name);
-                } else {
-                    if (strlen(receiveBuffer.message) > 2)
-                        printf("%s ... was send by %s.\n", receiveBuffer.message, receiveBuffer.name);
                 }
+                if (receiveBuffer.method == 1) {
+                    printf("%s ... was send by %s.\n", receiveBuffer.message, receiveBuffer.name);
+                }
+                if (receiveBuffer.method == 2)
+                    printf("%s ... has left the conversation.\n", receiveBuffer.name);
             }
 
             //monitor keyboard input
@@ -158,10 +154,18 @@ int main(int argc, char **argv) {
                     printf("%s ... was read from stdin.\n", buffer);
                     if (strncmp(buffer, "!EXIT", 5) == 0) {
                         //EXIT conversation
+
+                        //send exit
+                        struct messagepdu exitmsg;
+                        exitmsg.method = EXIT;
+                        strncpy(exitmsg.name, name, sizeof(joinmsg.name));
+                        strncpy(exitmsg.message, "", sizeof(joinmsg.message));
+                        createAndSendMessage((char *) &exitmsg, EXIT, nameptr, argv, argc);
+
                         break;
                     } else {
                         //SEND message
-                        createAndSendMessage(buffer, nameptr, argv, argc);
+                        createAndSendMessage(buffer, SEND, nameptr, argv, argc);
                     }
                 }
             }
@@ -169,13 +173,6 @@ int main(int argc, char **argv) {
     }
 
     printf("Leaving conversation.");
-
-    //send exit
-    struct messagepdu exitmsg;
-    exitmsg.method = EXIT;
-    strncpy(exitmsg.name, name, sizeof(joinmsg.name));
-    strncpy(exitmsg.message, "", sizeof(joinmsg.message));
-    createAndSendMessage((char *) &exitmsg, name, argv, argc);
 
     close(ssocket);
 
