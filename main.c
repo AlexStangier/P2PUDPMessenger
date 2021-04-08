@@ -132,7 +132,16 @@ int main(int argc, char **argv) {
             if (FD_ISSET(ssocket, &s_rd)) {
                 //udp package
                 recvfrom(ssocket, &receiveBuffer, sizeof(struct sendPDU), 0, (struct sockaddr *) &si_me, 0);
-                printf("%s ... was read from udp socket.\n", receiveBuffer.message);
+
+                if (strncmp(buffer, "!EXIT", 5) == 0) {
+                    printf("%s ... has left the conversation.\n", receiveBuffer.name);
+                } else if (strncmp(buffer, "!JOIN", 5) == 0) {
+                    printf("%s ... has joined the conversation.\n", receiveBuffer.name);
+                } else {
+                    printf("%s ... was send by %s.\n", receiveBuffer.message, receiveBuffer.name);
+                }
+
+
             }
 
             if (FD_ISSET(fileno(stdin), &s_rd)) {
@@ -143,8 +152,7 @@ int main(int argc, char **argv) {
                     if (strncmp(buffer, "!EXIT", 5) == 0) {
                         //EXIT conversation
                         break;
-                    }
-                    else {
+                    } else {
                         //SEND message
                         createAndSendMessage(buffer, nameptr, argv);
                     }
