@@ -140,11 +140,27 @@ int main(int argc, char **argv) {
                 fgets(buffer, sizeof(buffer), stdin);
                 if (strlen(buffer) > 1) {
                     printf("%s ... was read from stdin.\n", buffer);
-                    createAndSendMessage(buffer, nameptr, argv);
+                    if (strncmp(buffer, "!EXIT", 5) == 0) {
+                        //EXIT conversation
+                        break;
+                    }
+                    else {
+                        //SEND message
+                        createAndSendMessage(buffer, nameptr, argv);
+                    }
                 }
             }
         }
     }
+
+    printf("Leaving conversation.");
+
+    //send join
+    struct sendPDU exitmsg;
+    exitmsg.method = EXIT;
+    strncpy(exitmsg.name, name, sizeof(joinmsg.name));
+    strncpy(exitmsg.message, "", sizeof(joinmsg.message));
+    createAndSendMessage(&exitmsg, name, argv);
 
     close(ssocket);
 
